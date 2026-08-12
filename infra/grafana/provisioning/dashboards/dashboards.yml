@@ -1,0 +1,10 @@
+# Grafana dashboard provisioning — PLACEHOLDER.
+#
+# Drop dashboard JSON files here and reference them once observability is wired.
+#
+# apiVersion: 1
+# providers:
+#   - name: Airline
+#     type: file
+#     options:
+#       path: /etc/grafana/provisioning/dashboards

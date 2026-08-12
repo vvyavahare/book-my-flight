@@ -1,0 +1,86 @@
+# ============================================================================
+# Local infrastructure placeholders for the Airline platform.
+#
+# NOTHING here is required for the default run: every service boots standalone
+# with an in-memory H2 database. Start these only when you want to exercise the
+# Postgres / Elasticsearch / Kafka / Grafana integrations (activate the matching
+# Spring profiles on the services).
+#
+# Usage (when ready):
+#   docker compose -f infra/docker-compose.yml up -d postgres
+#   docker compose -f infra/docker-compose.yml up -d           # everything
+# ============================================================================
+
+services:
+  # ------------------------------------------------------------------ Postgres
+  postgres:
+    image: postgres:17-alpine
+    container_name: airline-postgres
+    environment:
+      POSTGRES_USER: airline
+      POSTGRES_PASSWORD: airline
+      # Create both databases the services expect.
+      POSTGRES_MULTIPLE_DATABASES: flights,bookings
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airline"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------- Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: airline-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------- Kafka
+  # KRaft mode (no ZooKeeper). Used later by booking-service (producer) and the
+  # future notification-service (consumer).
+  kafka:
+    image: bitnami/kafka:3.8
+    container_name: airline-kafka
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    ports:
+      - "9092:9092"
+
+  # ------------------------------------------------------------------- Grafana
+  # Placeholder for dashboards later (wire Prometheus/Loki/Tempo or the LGTM stack).
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: airline-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+    ports:
+      - "3300:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  postgres-data:
+  grafana-data:

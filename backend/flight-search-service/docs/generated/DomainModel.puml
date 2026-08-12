@@ -1,0 +1,24 @@
+@startuml
+!pragma layout smetana
+
+title Domain Model — flight-search-service
+footer Generated via reflection from domain/*.java by DomainModelExtractorTest
+
+hide empty members
+skinparam classAttributeIconSize 0
+
+class Flight {
+  id : String
+  flightNumber : String
+  airline : String
+  origin : String
+  destination : String
+  departureTime : LocalDateTime
+  arrivalTime : LocalDateTime
+  price : BigDecimal
+  currency : String
+  seatsAvailable : int
+}
+
+
+@enduml

@@ -1,0 +1,87 @@
+@startuml
+!pragma layout smetana
+
+title Logical Architecture — flight-search-service
+caption All lines are ArchUnit-tested vs code by PackagesArchTest
+footer flight-search-service/docs/packages.puml
+
+' ── The recipe (portable — copy this whole layout trick to any project) ───────
+' Adopted from github.com/victorrentea/petclinic.
+' 1. GRAVITY. A package is drawn below everything that depends on it, so every
+'    arrow points downwards. Depth of a package = length of the longest chain of
+'    dependencies starting at it; depth 0 (packages that depend on nothing) goes
+'    at the bottom. That is a computation, not an opinion — no layer names here.
+'
+' 2. INVISIBLE ANCHORS. Depths are held apart by a blank `label` per boundary,
+'    pinned by `-[hidden]->` arrows from every package above it and to every
+'    package below it. Nothing is drawn — the anchor only claims a row of its
+'    own, which forces the packages onto separate rows. Do NOT pin with hidden
+'    arrows between packages: ArchUnit reads those as real dependencies. It drops
+'    the ones pointing at `sepN`, because `sepN` is not a component.
+'
+' 3. CYCLES ARE RED. A bidirectional dependency is ONE red double-headed line,
+'    backed by two `-[hidden]->` arrows so ArchUnit parses both directed edges:
+'        [A] <-[#red,thickness=2]-> [B]
+'        [A] -[hidden]-> [B]
+'        [B] -[hidden]-> [A]
+'    No cycle exists here today; the convention is in place so one shows up red.
+' ─────────────────────────────────────────────────────────────────────────────
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam nodesep 20
+skinparam ranksep 30
+<style>
+component {
+  BackGroundColor #ECEFF1
+  LineColor #546E7A
+  FontStyle bold
+}
+arrow {
+  LineColor #78909C
+}
+</style>
+
+' depth 3
+[Web] <<..web>>
+
+' depth 2
+[Service] <<..service>>
+[Config] <<..config>>
+
+' depth 1
+[Repository] <<..repository>>
+
+' depth 0
+[Domain] <<..domain>>
+[DTO] <<..dto>>
+
+label " " as sep1
+label " " as sep2
+label " " as sep3
+
+[Web] --> [Service]
+[Web] --> [DTO]
+[Service] --> [Repository]
+[Service] --> [Domain]
+[Service] --> [DTO]
+[Config] --> [Repository]
+[Config] --> [Domain]
+[Repository] --> [Domain]
+
+' depth 3 sits above depth 2
+[Web] -[hidden]-> sep1
+sep1 -[hidden]-> [Service]
+sep1 -[hidden]-> [Config]
+
+' depth 2 sits above depth 1
+[Service] -[hidden]-> sep2
+[Config] -[hidden]-> sep2
+sep2 -[hidden]-> [Repository]
+
+' depth 1 sits above depth 0
+[Repository] -[hidden]-> sep3
+sep3 -[hidden]-> [Domain]
+sep3 -[hidden]-> [DTO]
+
+@enduml

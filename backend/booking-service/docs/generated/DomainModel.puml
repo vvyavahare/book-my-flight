@@ -1,0 +1,37 @@
+@startuml
+!pragma layout smetana
+
+title Domain Model — booking-service
+footer Generated via reflection from domain/*.java by DomainModelExtractorTest
+
+hide empty members
+skinparam classAttributeIconSize 0
+
+class Booking {
+  id : String
+  reference : String
+  flightId : String
+  flightNumber : String
+  origin : String
+  destination : String
+  departureTime : LocalDateTime
+  contactEmail : String
+  bookedBy : String
+  totalPrice : BigDecimal
+  currency : String
+  createdAt : Instant
+}
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+class Passenger {
+  firstName : String
+  lastName : String
+  passportNumber : String
+}
+
+Booking "1" -- "0..*" Passenger : passengers
+BookingStatus "1" -- "0..*" Booking : status
+
+@enduml

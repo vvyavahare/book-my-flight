@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.pet.project.airline</groupId>
+    <artifactId>airline-bom</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>airline-bom</name>
+    <description>
+        Bill of Materials: single source of truth for dependency versions across all
+        airline microservices. Import this (scope=import) to inherit consistent, vetted
+        versions and reduce the number of vulnerability fixes needed per service.
+    </description>
+
+    <properties>
+        <!-- Release trains / third-party versions managed centrally -->
+        <spring-cloud.version>2025.1.2</spring-cloud.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <archunit.version>1.5.0</archunit.version>
+        <!-- Internal module version -->
+        <airline.version>0.0.1-SNAPSHOT</airline.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Cloud release train (Gateway, etc.) aligned with Spring Boot 4.1.x -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- JSON Web Token (used by gateway auth + shared JWT util) -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <!-- Architecture guardrail tests (packages diagram sync) -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+            </dependency>
+
+            <!-- Internal shared library -->
+            <dependency>
+                <groupId>com.pet.project.airline</groupId>
+                <artifactId>airline-common</artifactId>
+                <version>${airline.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>

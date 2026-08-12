@@ -1,0 +1,14 @@
+# Grafana datasource provisioning — PLACEHOLDER.
+#
+# When observability is added, point Grafana at your metrics/logs/traces backends
+# (e.g. Prometheus, Loki, Tempo — or the Grafana LGTM all-in-one). The Spring Boot
+# services already expose Micrometer metrics at /actuator/metrics and can export to
+# Prometheus once the registry dependency is enabled.
+#
+# apiVersion: 1
+# datasources:
+#   - name: Prometheus
+#     type: prometheus
+#     access: proxy
+#     url: http://prometheus:9090
+#     isDefault: true

@@ -11,20 +11,26 @@ a seeded catalog — no external infrastructure required.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/flights?origin={IATA}&destination={IATA}&date={yyyy-MM-dd}` | Search flights by route and (optional) departure date. Defaults to today. |
+| `GET` | `/api/flights/airports` | Global catalog of ~75 major airports for searchable dropdowns. |
+| `POST` | `/api/flights` | **Admin** — create a flight in the catalog. Returns `201`. |
 | `GET` | `/api/flights/{id}` | Fetch a single flight by id. |
 | `GET` | `/actuator/health` | Liveness/readiness. |
 
 `FlightDto` fields: `id, flightNumber, airline, origin, destination, departureTime,
-arrivalTime, price, currency, seatsAvailable`.
+arrivalTime, price, currency, seatsAvailable`. `AirportDto` fields: `code, name, city,
+country`.
 
 > Reached through the [api-gateway](../api-gateway) in normal use; the endpoints above are the
-> gateway's `/api/flights/**` route target.
+> gateway's `/api/flights/**` route target. The gateway enforces the `ADMIN` role on
+> `POST /api/flights`.
 
 ## Seed data
 
-On startup `FlightDataSeeder` inserts ~7 days of flights across a few routes
-(`AMS↔LHR`, `AMS↔JFK`, `AMS↔CDG`, `AMS→BCN`) so the API returns results immediately. Prices
-are in EUR; each flight starts with 180 seats.
+On startup `FlightDataSeeder` inserts ~7 days of flights across ~30 routes spanning Europe,
+the Atlantic, the Middle East/Asia and the southern hemisphere (e.g. `AMS↔LHR`, `AMS↔JFK`,
+`LHR→DEL`, `AMS→DXB`, `SIN→SYD`) so the API returns results immediately. `AirportCatalog`
+provides the global airport list for dropdowns. Prices are in EUR; each seeded flight starts
+with 180 seats.
 
 ## Packages
 

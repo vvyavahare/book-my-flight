@@ -39,11 +39,13 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 
 | Route | File | Purpose |
 |-------|------|---------|
-| `/login` | `src/app/login/page.tsx` | Sign in → stores JWT, redirects home |
-| `/` | `src/app/page.tsx` | Flight search form → results → select → booking form |
+| `/login` | `src/app/login/page.tsx` | Sign in → stores JWT + roles, redirects home |
+| `/` | `src/app/page.tsx` | Flight search (searchable airport dropdowns) → results → select → booking form |
 | `/bookings/[id]` | `src/app/bookings/[id]/page.tsx` | Booking confirmation |
+| `/admin` | `src/app/admin/page.tsx` | **Admin only** — add flights + realtime table of all bookings (SSE) |
 
-Unauthenticated visits to protected pages redirect to `/login` (`useRequireAuth`).
+Unauthenticated visits to protected pages redirect to `/login` (`useRequireAuth`); the
+admin page additionally bounces non-admins home (`useRequireAdmin`).
 
 ## Structure
 
@@ -53,33 +55,41 @@ src/
 │   ├── layout.tsx       # AuthProvider + Navbar shell
 │   ├── page.tsx         # search + results + booking
 │   ├── login/           # login screen
+│   ├── admin/           # admin dashboard (realtime bookings + add flight)
 │   └── bookings/[id]/   # confirmation screen
-├── components/          # Navbar, SearchForm, FlightCard, BookingForm
+├── components/          # Navbar, SearchForm, FlightCard, BookingForm,
+│   │                    # AirportSelect (searchable combobox), AddFlightForm
 └── lib/
-    ├── api.ts           # typed fetch client (only talks to the gateway)
+    ├── api.ts           # typed fetch client (only talks to the gateway) + SSE URL helper
     ├── types.ts         # API types mirroring backend DTOs
-    ├── auth.tsx         # AuthProvider / useAuth (JWT in localStorage)
+    ├── auth.tsx         # AuthProvider / useAuth (JWT + roles in localStorage)
     ├── useRequireAuth.ts# client-side route guard
+    ├── useRequireAdmin.ts # admin-only route guard
+    ├── useAirports.ts   # loads + caches the global airport catalog
     ├── format.ts        # date / money formatting
-    └── stream.ts        # placeholder for future WebSocket/SSE
+    └── stream.ts        # generic SSE helper shape (admin page uses EventSource directly)
 ```
 
 ## API client
 
 `src/lib/api.ts` centralises all backend calls, attaches the `Bearer` token, and throws a
 typed `ApiError` (with the HTTP status) so callers can react — e.g. a `401` clears the token
-and bounces to login. Methods: `login`, `searchFlights`, `createBooking`, `getBooking`.
+and bounces to login. Methods: `login`, `searchFlights`, `createBooking`, `getBooking`,
+`listBookings`, `createFlight`, `getAirports`. `bookingStreamUrl()` builds the SSE URL with
+the token as an `access_token` query param (EventSource cannot set headers).
 
 ## Auth
 
-`AuthProvider` stores the JWT (and username) in `localStorage` and exposes
-`login` / `logout` / `isAuthenticated` via `useAuth()`. There is no server session — the token
-is sent on each request to the gateway.
+`AuthProvider` stores the JWT, username and roles in `localStorage` and exposes
+`login` / `logout` / `isAuthenticated` / `isAdmin` via `useAuth()`. There is no server
+session — the token is sent on each request to the gateway. The Navbar shows an **Admin**
+link and badge when the signed-in user has the `ADMIN` role.
 
-## Future real-time
+## Realtime
 
-`src/lib/stream.ts` reserves the shape for a WebSocket/SSE channel (e.g. live seat
-availability or booking-status updates) to be wired to the gateway later.
+The admin dashboard opens an `EventSource` to `GET /api/bookings/stream` and appends each
+`booking` event to the table as it arrives, so bookings made by any traveller show up live
+with no refresh.
 
 ## Notes
 

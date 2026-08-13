@@ -13,12 +13,16 @@ enforces JWT auth on `/api/**` (except `/api/auth/**`) and routes to the microse
 ### `POST /api/auth/login`
 
 Dev login. Returns a signed HS256 JWT (valid 60 min by default). No auth required.
-Two seeded accounts:
+Accounts (dev only):
 
 | Username | Password | Role  | Can |
 |----------|----------|-------|-----|
-| `demo`   | `demo`   | USER  | search + book flights |
-| `admin`  | `admin`  | ADMIN | everything USER can, plus list all bookings, the live booking feed, and creating flights |
+| `admin`  | `admin`  | ADMIN | manage flights (create/update/soft-delete/list), list all bookings, live booking feed |
+| any other username | `demo` | USER | search + book flights, pay, modify/cancel own bookings |
+
+Any username (except `admin`) combined with the shared user password (`demo`) signs in as a
+distinct traveller, so multiple users each keep their own bookings (e.g. `alice`/`demo`,
+`bob`/`demo`).
 
 **Request**
 ```json
@@ -69,10 +73,13 @@ Search flights by route and optional departure date (defaults to today).
     "arrivalTime": "2026-08-12T09:50:00",
     "price": 129.00,
     "currency": "EUR",
-    "seatsAvailable": 180
+    "seatsAvailable": 180,
+    "active": true
   }
 ]
 ```
+
+Only `active` (non-soft-deleted) flights are returned.
 
 ```bash
 curl -s "http://localhost:8080/api/flights?origin=AMS&destination=LHR&date=$(date +%F)" \
@@ -92,6 +99,23 @@ dropdowns. **200** → array of `Airport`:
 [
   { "code": "AMS", "name": "Amsterdam Schiphol", "city": "Amsterdam", "country": "Netherlands" }
 ]
+```
+
+### `GET /api/flights/admin`  · **admin**
+
+Paginated, searchable listing of the whole catalog for the admin console. Requires `ADMIN`.
+
+| Query param | Default | Notes |
+|-------------|---------|-------|
+| `q` | — | Free text matched across **all** columns (flight number, airline, origin/destination codes, and the city/name/country of both airports, price, currency). Resolves **city synonyms** (`Bombay` → `BOM`/Mumbai) and tolerates small typos (`Mumbi` → Mumbai). |
+| `page` | `0` | Zero-based page index |
+| `size` | `10` | Page size (1–200) |
+| `sort` | `departureTime,asc` | `field,dir` — field ∈ {flightNumber, airline, origin, destination, departureTime, arrivalTime, price, seatsAvailable} |
+| `includeInactive` | `true` | Include soft-deleted flights |
+
+**200** → `PageResponse<Flight>`:
+```json
+{ "content": [ { "id": "…", "active": true } ], "page": 0, "size": 10, "totalElements": 210 }
 ```
 
 ### `POST /api/flights`  · **admin**
@@ -117,12 +141,28 @@ The flight `id` is derived as `<FLIGHTNUMBER>-<departureDate>`. **201** → the 
 Errors: **400** validation / arrival not after departure / same origin & destination · **403**
 non-admin.
 
+### `PUT /api/flights/{id}`  · **admin**
+
+Update an existing flight. Body is the same shape as create (`UpdateFlightRequest`). **200** →
+the updated `Flight`; **404** unknown id; **400** validation; **403** non-admin.
+
+### `DELETE /api/flights/{id}`  · **admin**
+
+**Soft-delete** a flight: sets `active=false` so it disappears from search but is preserved for
+history. **200** → the flight with `active:false`; **404** unknown id; **403** non-admin.
+
 ## Bookings  (routed to booking-service)
+
+Booking lifecycle: `PENDING_PAYMENT` → (pay) → `PAID` → (cancel) → `CANCELLED`/`REFUNDED`.
+Booking management endpoints (`mine`, payment, modify, cancel, refund-quote) are
+**owner-scoped**: the caller must be the user who made the booking (`X-Auth-User`), otherwise
+**403**.
 
 ### `POST /api/bookings`
 
 Create a booking. Validates the flight via flight-search, prices it (`price × passengers`),
-persists it, and emits a `BookingCreated` event.
+persists it as `PENDING_PAYMENT`, emits a `BookingCreated` event, and broadcasts it on the
+live feed. The authenticated user is recorded as `bookedBy`.
 
 **Request** (`CreateBookingRequest`)
 ```json
@@ -157,15 +197,73 @@ persists it, and emits a `BookingCreated` event.
   "passengers": [ { "firstName": "Ada", "lastName": "Lovelace", "passportNumber": "X123" } ],
   "totalPrice": 129.00,
   "currency": "EUR",
-  "status": "CONFIRMED",
+  "status": "PENDING_PAYMENT",
+  "amountPaid": 0.00,
+  "refundAmount": 0.00,
+  "paymentReference": null,
   "createdAt": "2026-08-12T19:31:31.156Z"
 }
 ```
 
 `bookedBy` is the authenticated username (from `X-Auth-User`), so the admin dashboard can
-show who made each booking.
+show who made each booking. New bookings start `PENDING_PAYMENT` until paid.
 
 Errors: **400** validation / not enough seats · **404** unknown `flightId`.
+
+### `GET /api/bookings/mine`
+
+List the authenticated user's own bookings, newest first. **200** → array of `BookingDto`.
+
+### `POST /api/bookings/{id}/payment`  · owner
+
+Take (mock) payment to confirm a booking (`PENDING_PAYMENT` → `PAID`). Owner-only.
+
+**Request** (`PaymentRequest` — not really charged)
+```json
+{ "cardHolder": "Ada Lovelace", "cardNumber": "4111111111111111", "expiry": "12/29", "cvc": "123" }
+```
+
+**200** → the `PAID` booking (`amountPaid` = total, `paymentReference` set). **400** if the
+booking is not awaiting payment; **403** if not the owner.
+
+### `PUT /api/bookings/{id}`  · owner
+
+Modify passenger details and contact email. **Correction rules** (enforced server-side):
+
+- The passenger count is fixed — you cannot add or remove passengers (that would be a transfer).
+- Each passenger name may only be adjusted as a **typo correction**. A wholesale name change
+  (transferring the ticket to a different person) is rejected with **400**.
+- Passport numbers and the contact email can be changed freely, at no charge.
+
+**Request** (`ModifyBookingRequest`)
+```json
+{
+  "contactEmail": "ada@example.com",
+  "passengers": [ { "firstName": "Adah", "lastName": "Lovelace", "passportNumber": "X123" } ]
+}
+```
+
+**200** → the updated booking; **400** rule violation; **403** not the owner.
+
+### `GET /api/bookings/{id}/refund-quote`  · owner
+
+Preview the refund for cancelling now, without cancelling. **200** →
+`{ "amount": 129.00, "percent": 100, "reason": "…" }`.
+
+### `POST /api/bookings/{id}/cancel`  · owner
+
+Cancel a booking and compute the refund per the policy below. **200** → the cancelled booking
+with `status` `CANCELLED`/`REFUNDED` and `refundAmount` set. **400** if already cancelled;
+**403** if not the owner.
+
+**Refund policy** (based on time before departure):
+
+| When cancelled | Refund |
+|----------------|--------|
+| 7+ days before departure | 100% |
+| less than 7 days, but not the day of travel | 50% |
+| on the day of travel, before departure | 30% |
+| at/after departure (no-show) | 0% |
 
 ### `GET /api/bookings`  · **admin**
 
@@ -174,12 +272,13 @@ List every booking, newest first. Requires the `ADMIN` role. **200** → array o
 
 ### `GET /api/bookings/stream`  · **admin**
 
-Server-Sent Events (SSE) feed of bookings as they are created — this powers the **realtime**
-admin dashboard. Requires the `ADMIN` role. Because browser `EventSource` cannot set headers,
-pass the JWT as `?access_token=<jwt>`.
+Server-Sent Events (SSE) feed of booking activity — this powers the **realtime** admin
+dashboard. Requires the `ADMIN` role. Because browser `EventSource` cannot set headers, pass
+the JWT as `?access_token=<jwt>`.
 
 - `event: connected` / `data: ok` — sent once on subscribe.
-- `event: booking` / `data: <BookingDto>` — sent for every new booking.
+- `event: booking` / `data: <BookingDto>` — sent for every booking **created or updated**
+  (payment, modification, cancellation), so the dashboard can upsert the row live.
 
 ```bash
 curl -N "http://localhost:8080/api/bookings/stream?access_token=$ADMIN_TOKEN"

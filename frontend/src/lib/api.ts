@@ -5,6 +5,11 @@ import type {
   CreateFlightRequest,
   Flight,
   LoginResponse,
+  ModifyBookingRequest,
+  PageResponse,
+  PaymentRequest,
+  RefundQuote,
+  UpdateFlightRequest,
   ApiErrorBody,
 } from "./types";
 
@@ -113,6 +118,35 @@ export const api = {
     return request<Booking[]>("/api/bookings");
   },
 
+  async listMyBookings(): Promise<Booking[]> {
+    return request<Booking[]>("/api/bookings/mine");
+  },
+
+  async payBooking(id: string, payload: PaymentRequest): Promise<Booking> {
+    return request<Booking>(`/api/bookings/${id}/payment`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getRefundQuote(id: string): Promise<RefundQuote> {
+    return request<RefundQuote>(`/api/bookings/${id}/refund-quote`);
+  },
+
+  async modifyBooking(
+    id: string,
+    payload: ModifyBookingRequest,
+  ): Promise<Booking> {
+    return request<Booking>(`/api/bookings/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async cancelBooking(id: string): Promise<Booking> {
+    return request<Booking>(`/api/bookings/${id}/cancel`, { method: "POST" });
+  },
+
   async getAirports(): Promise<Airport[]> {
     return request<Airport[]>("/api/flights/airports");
   },
@@ -122,6 +156,37 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+
+  async updateFlight(id: string, payload: UpdateFlightRequest): Promise<Flight> {
+    return request<Flight>(`/api/flights/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteFlight(id: string): Promise<Flight> {
+    return request<Flight>(`/api/flights/${id}`, { method: "DELETE" });
+  },
+
+  async adminListFlights(params: {
+    q?: string;
+    page?: number;
+    size?: number;
+    sort?: string;
+    includeInactive?: boolean;
+  }): Promise<PageResponse<Flight>> {
+    const search = new URLSearchParams();
+    if (params.q) search.set("q", params.q);
+    search.set("page", String(params.page ?? 0));
+    search.set("size", String(params.size ?? 10));
+    if (params.sort) search.set("sort", params.sort);
+    if (params.includeInactive !== undefined) {
+      search.set("includeInactive", String(params.includeInactive));
+    }
+    return request<PageResponse<Flight>>(
+      `/api/flights/admin?${search.toString()}`,
+    );
   },
 };
 

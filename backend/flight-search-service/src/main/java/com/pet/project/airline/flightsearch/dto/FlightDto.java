@@ -16,6 +16,7 @@ public record FlightDto(
         LocalDateTime arrivalTime,
         BigDecimal price,
         String currency,
-        int seatsAvailable
+        int seatsAvailable,
+        boolean active
 ) {
 }

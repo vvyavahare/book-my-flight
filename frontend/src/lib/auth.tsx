@@ -16,7 +16,7 @@ interface AuthState {
   isAdmin: boolean;
   isAuthenticated: boolean;
   ready: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<string>;
   logout: () => void;
 }
 
@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.localStorage.setItem(ROLES_KEY, res.roles ?? "");
         setUsername(res.username);
         setRoles(res.roles ?? "");
+        return res.roles ?? "";
       },
       logout() {
         clearToken();

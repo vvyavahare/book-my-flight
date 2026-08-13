@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAdmin } = useAuth();
   const router = useRouter();
   const [username, setUsername] = useState("demo");
   const [password, setPassword] = useState("demo");
@@ -18,8 +18,8 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await login(username, password);
-      router.push("/");
+      const roles = await login(username, password);
+      router.push(roles.includes("ADMIN") ? "/admin" : "/");
     } catch (err) {
       const message =
         err instanceof ApiError ? err.message : "Unable to sign in. Try again.";
@@ -80,8 +80,9 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-xs text-slate-400">
-          Demo user (<code>demo</code> / <code>demo</code>) or admin (
-          <code>admin</code> / <code>admin</code>).
+          Admin (<code>admin</code> / <code>admin</code>) or sign in as any
+          traveller — any username with password <code>demo</code> (e.g.{" "}
+          <code>alice</code> / <code>demo</code>).
         </p>
       </div>
     </div>

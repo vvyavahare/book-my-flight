@@ -11,9 +11,14 @@ Creates and retrieves flight bookings. Validates the chosen flight against
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/bookings` | Create a booking (validates flight, prices it, persists, emits event, broadcasts to the live feed). Returns `201`. |
+| `POST` | `/api/bookings` | Create a booking (`PENDING_PAYMENT`); validates flight, prices it, emits event, broadcasts. `201`. |
+| `GET` | `/api/bookings/mine` | List the authenticated user's own bookings. |
+| `POST` | `/api/bookings/{id}/payment` | **Owner** — take (mock) payment → `PAID`. |
+| `GET` | `/api/bookings/{id}/refund-quote` | **Owner** — preview the refund for cancelling now. |
+| `PUT` | `/api/bookings/{id}` | **Owner** — modify passenger details / email (typo corrections only). |
+| `POST` | `/api/bookings/{id}/cancel` | **Owner** — cancel and compute refund. |
 | `GET` | `/api/bookings` | **Admin** — list every booking, newest first. |
-| `GET` | `/api/bookings/stream` | **Admin** — Server-Sent Events feed of bookings as they are created. |
+| `GET` | `/api/bookings/stream` | **Admin** — SSE feed of created/updated bookings. |
 | `GET` | `/api/bookings/{id}` | Fetch a booking by id. |
 | `GET` | `/actuator/health` | Liveness/readiness. |
 
@@ -30,15 +35,25 @@ Creates and retrieves flight bookings. Validates the chosen flight against
 ```
 
 **Response** (`BookingDto`): `id, reference, flightId, flightNumber, origin, destination,
-departureTime, contactEmail, bookedBy, passengers[], totalPrice, currency, status, createdAt`.
-`bookedBy` is captured from the gateway's `X-Auth-User` header so admins can see who booked.
+departureTime, contactEmail, bookedBy, passengers[], totalPrice, currency, status, amountPaid,
+refundAmount, paymentReference, createdAt`. `bookedBy` is captured from the gateway's
+`X-Auth-User` header; owner-scoped endpoints check it.
+
+## Payments, modify & refunds
+
+- Bookings start `PENDING_PAYMENT`; `POST /{id}/payment` records a mock payment and moves them
+  to `PAID`.
+- `RefundPolicy` computes cancellation refunds: 100% (7+ days out), 50% (<7 days, different
+  day), 30% (day of travel before departure), 0% (at/after departure).
+- `NameSimilarity` enforces modify rules: free typo corrections and passport/email edits, but
+  wholesale passenger-name changes or count changes (ticket transfers) are rejected.
 
 ## Realtime feed
 
 `BookingStreamBroadcaster` keeps the SSE emitters registered via `GET /api/bookings/stream`.
-When a booking is created, `BookingService` broadcasts the new `BookingDto` to every
-subscriber (`event: booking`) — this powers the realtime admin dashboard. The gateway
-enforces the `ADMIN` role on both the list and stream endpoints.
+When a booking is created, paid, modified or cancelled, `BookingService` broadcasts the
+updated `BookingDto` to every subscriber (`event: booking`) — this powers the realtime admin
+dashboard. The gateway enforces the `ADMIN` role on both the list and stream endpoints.
 
 ## Inter-service call
 

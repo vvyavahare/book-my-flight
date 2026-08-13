@@ -46,6 +46,9 @@ public class Flight {
     @Column(nullable = false)
     private int seatsAvailable;
 
+    @Column(nullable = false)
+    private boolean active;
+
     protected Flight() {
         // for JPA
     }
@@ -63,6 +66,7 @@ public class Flight {
         this.price = price;
         this.currency = currency;
         this.seatsAvailable = seatsAvailable;
+        this.active = true;
     }
 
     public String getId() {
@@ -103,5 +107,29 @@ public class Flight {
 
     public int getSeatsAvailable() {
         return seatsAvailable;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    /** Apply an edit to mutable flight details (admin action). */
+    public void update(String flightNumber, String airline, String origin, String destination,
+                       LocalDateTime departureTime, LocalDateTime arrivalTime, BigDecimal price,
+                       String currency, int seatsAvailable) {
+        this.flightNumber = flightNumber;
+        this.airline = airline;
+        this.origin = origin;
+        this.destination = destination;
+        this.departureTime = departureTime;
+        this.arrivalTime = arrivalTime;
+        this.price = price;
+        this.currency = currency;
+        this.seatsAvailable = seatsAvailable;
+    }
+
+    /** Soft delete: hide from search without removing history. */
+    public void deactivate() {
+        this.active = false;
     }
 }

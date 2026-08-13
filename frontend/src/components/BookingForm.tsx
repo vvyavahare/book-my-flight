@@ -185,7 +185,7 @@ export function BookingForm({
             disabled={submitting}
             className="rounded-lg bg-gradient-to-r from-indigo-500 to-sky-500 px-5 py-2.5 font-medium text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
           >
-            {submitting ? "Booking…" : "Confirm booking"}
+            {submitting ? "Booking…" : "Continue to payment"}
           </button>
         </div>
       </form>

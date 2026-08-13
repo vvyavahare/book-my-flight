@@ -82,14 +82,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** Endpoints that only administrators may call. */
     private boolean requiresAdmin(HttpServletRequest request) {
         String path = request.getRequestURI();
-        String method = request.getMethod();
-        if ("POST".equalsIgnoreCase(method) && "/api/flights".equals(path)) {
-            return true; // create a flight
+        String method = request.getMethod().toUpperCase();
+
+        // Flight management (create / update / soft-delete / admin listing).
+        if ("POST".equals(method) && "/api/flights".equals(path)) {
+            return true;
         }
-        if ("GET".equalsIgnoreCase(method) && "/api/bookings".equals(path)) {
-            return true; // list all bookings
+        if (("PUT".equals(method) || "DELETE".equals(method)) && path.startsWith("/api/flights/")) {
+            return true;
         }
-        return "GET".equalsIgnoreCase(method) && "/api/bookings/stream".equals(path); // live booking feed
+        if ("GET".equals(method) && "/api/flights/admin".equals(path)) {
+            return true;
+        }
+
+        // Booking oversight (list all + live feed). User-scoped booking paths stay open.
+        if ("GET".equals(method) && "/api/bookings".equals(path)) {
+            return true;
+        }
+        return "GET".equals(method) && "/api/bookings/stream".equals(path);
     }
 
     private boolean hasAdminRole(String roles) {

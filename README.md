@@ -1,10 +1,10 @@
 # AirGo — Airline Ticketing Platform
 
 A monorepo demonstrating an online airline ticketing platform built as **Spring Boot
-microservices** with a **Next.js** frontend. It delivers end-to-end slices — **search
-flights → book a flight**, plus a **role-based admin dashboard** with a **realtime booking
-feed**, **runtime flight creation**, and **searchable global airport dropdowns** — behind
-an **API gateway with JWT auth**.
+microservices** with a **Next.js** frontend. It covers the full journey — **search flights →
+book → pay → manage** for travellers — plus a **role-based admin console** with **flight CRUD
+(soft-delete)**, **backend-paginated fuzzy search**, and a **realtime booking feed**, all
+behind an **API gateway with JWT auth**.
 
 > Everything runs locally with **zero external infrastructure**. Each service uses an
 > in-memory **H2** database by default. Postgres, Elasticsearch, Kafka and Grafana are
@@ -60,8 +60,9 @@ Browser ───▶ │  api-gateway  │ :8080   (JWT auth, CORS, routing)
 ```bash
 ./scripts/start-all.sh      # builds backend, starts 3 services + frontend dev server
 ```
-Then open http://localhost:3000 and sign in with **demo / demo** (traveller) or
-**admin / admin** (admin dashboard with the live booking feed and flight management).
+Then open http://localhost:3000 and sign in as a **traveller** (any username with password
+**demo**, e.g. `alice`/`demo`) to search, book, pay for and manage trips — or as **admin /
+admin** for the management console (flight CRUD, fuzzy search, and the live booking feed).
 
 Stop the backend services with:
 ```bash

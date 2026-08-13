@@ -10,4 +10,6 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     Optional<Booking> findByReference(String reference);
 
     List<Booking> findAllByOrderByCreatedAtDesc();
+
+    List<Booking> findByBookedByOrderByCreatedAtDesc(String bookedBy);
 }

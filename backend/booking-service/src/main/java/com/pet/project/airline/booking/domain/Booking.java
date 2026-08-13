@@ -65,6 +65,15 @@ public class Booking {
     @Column(nullable = false)
     private BookingStatus status;
 
+    @Column(nullable = false)
+    private BigDecimal amountPaid;
+
+    @Column(nullable = false)
+    private BigDecimal refundAmount;
+
+    @Column
+    private String paymentReference;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -87,7 +96,9 @@ public class Booking {
         this.passengers = passengers;
         this.totalPrice = totalPrice;
         this.currency = currency;
-        this.status = BookingStatus.CONFIRMED;
+        this.status = BookingStatus.PENDING_PAYMENT;
+        this.amountPaid = BigDecimal.ZERO;
+        this.refundAmount = BigDecimal.ZERO;
         this.createdAt = Instant.now();
     }
 
@@ -143,7 +154,50 @@ public class Booking {
         return status;
     }
 
+    public BigDecimal getAmountPaid() {
+        return amountPaid;
+    }
+
+    public BigDecimal getRefundAmount() {
+        return refundAmount;
+    }
+
+    public String getPaymentReference() {
+        return paymentReference;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    // ── Behaviour ────────────────────────────────────────────────────────────────
+
+    /** Record a successful payment and confirm the booking. */
+    public void markPaid(String paymentReference) {
+        if (status != BookingStatus.PENDING_PAYMENT) {
+            throw new IllegalStateException("Booking is not awaiting payment (status=" + status + ")");
+        }
+        this.paymentReference = paymentReference;
+        this.amountPaid = this.totalPrice;
+        this.status = BookingStatus.PAID;
+    }
+
+    /** Cancel the booking, recording the refunded amount. */
+    public void cancel(BigDecimal refund) {
+        if (status == BookingStatus.CANCELLED || status == BookingStatus.REFUNDED) {
+            throw new IllegalStateException("Booking is already cancelled");
+        }
+        this.refundAmount = refund == null ? BigDecimal.ZERO : refund;
+        this.status = this.refundAmount.signum() > 0 ? BookingStatus.REFUNDED : BookingStatus.CANCELLED;
+    }
+
+    /** Replace passenger details and contact email (used by modify with typo-correction rules). */
+    public void reviseDetails(List<Passenger> passengers, String contactEmail) {
+        this.passengers = passengers;
+        this.contactEmail = contactEmail;
+    }
+
+    public boolean isCancelled() {
+        return status == BookingStatus.CANCELLED || status == BookingStatus.REFUNDED;
     }
 }

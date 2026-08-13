@@ -34,7 +34,8 @@ airline:
   cors:
     allowed-origins: http://localhost:3000
   security:
-    # Demo login credentials (dev only). Replaced by a real auth service later.
+    # Dev login. Any username (except the admin user) with `demo-password` signs in as a
+    # distinct traveller (role USER). `demo-user` is kept as a documented default only.
     demo-user: demo
     demo-password: demo
     # Admin login credentials (dev only). Grants the ADMIN role.

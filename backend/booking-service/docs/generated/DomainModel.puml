@@ -19,11 +19,17 @@ class Booking {
   bookedBy : String
   totalPrice : BigDecimal
   currency : String
+  amountPaid : BigDecimal
+  refundAmount : BigDecimal
+  paymentReference : String
   createdAt : Instant
 }
 enum BookingStatus {
+  PENDING_PAYMENT
+  PAID
   CONFIRMED
   CANCELLED
+  REFUNDED
 }
 class Passenger {
   firstName : String

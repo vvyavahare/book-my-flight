@@ -43,20 +43,26 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        String username = request.username() == null ? "" : request.username().trim();
         String roles;
-        if (adminUser.equals(request.username()) && adminPassword.equals(request.password())) {
+        if (adminUser.equals(username) && adminPassword.equals(request.password())) {
             roles = "ADMIN";
-        } else if (demoUser.equals(request.username()) && demoPassword.equals(request.password())) {
+        } else if (adminUser.equals(username)) {
+            // Reserved admin username with a wrong password.
+            return ResponseEntity.status(401).body(Map.of("message", "Invalid credentials"));
+        } else if (!username.isBlank() && demoPassword.equals(request.password())) {
+            // Dev mode: any username signs in as a distinct traveller with the shared user
+            // password, so multiple users can each keep their own bookings.
             roles = "USER";
         } else {
             return ResponseEntity.status(401).body(Map.of("message", "Invalid credentials"));
         }
-        String token = jwtService.generateToken(request.username(), Map.of("roles", roles));
+        String token = jwtService.generateToken(username, Map.of("roles", roles));
         return ResponseEntity.ok(new LoginResponse(
                 token,
                 "Bearer",
                 jwtProperties.expirationMinutes(),
-                request.username(),
+                username,
                 roles));
     }
 }

@@ -37,22 +37,26 @@
 - HS256 JWT issued and validated by the gateway (`JwtService` in `airline-common`).
 - Config under `airline.security.jwt.*`; override the secret via
   `AIRLINE_SECURITY_JWT_SECRET` in real environments.
-- Phase 1 uses two seeded accounts: `demo/demo` (role `USER`) and `admin/admin`
-  (role `ADMIN`). The token carries a `roles` claim.
+- Dev accounts: `admin/admin` (role `ADMIN`) and any other username with the shared user
+  password (`demo`) → role `USER`, so multiple distinct travellers can each keep their own
+  bookings. The token carries a `roles` claim.
 - The gateway forwards `X-Auth-User` and `X-Auth-Roles` downstream and enforces the `ADMIN`
-  role on admin-only endpoints (`POST /api/flights`, `GET /api/bookings`,
-  `GET /api/bookings/stream`). A dedicated **user/auth service** replaces the inline login
-  later; downstream services keep consuming the same forwarded headers.
+  role on admin-only endpoints (flight create/update/delete, `GET /api/flights/admin`,
+  `GET /api/bookings`, `GET /api/bookings/stream`). User-scoped booking endpoints (`/mine`,
+  payment, modify, cancel) are open to any authenticated user; **ownership** is enforced in
+  `booking-service` by comparing `X-Auth-User` to the booking's `bookedBy` (else `403`).
+  A dedicated **user/auth service** replaces the inline login later; downstream services keep
+  consuming the same forwarded headers.
 - SSE endpoints also accept the token as an `access_token` query parameter, because the
   browser `EventSource` API cannot send an `Authorization` header.
 
 ## Realtime (SSE)
 
 - `booking-service` exposes `GET /api/bookings/stream` — a Server-Sent Events feed. A
-  `BookingStreamBroadcaster` holds the connected emitters; when a booking is created the
-  service fans the new `BookingDto` out to every subscriber.
-- The admin dashboard (frontend `/admin`) subscribes via `EventSource` so a booking made by
-  any user appears in the admin's table the instant it is confirmed — no polling.
+  `BookingStreamBroadcaster` holds the connected emitters; when a booking is created, paid,
+  modified or cancelled the service fans the updated `BookingDto` out to every subscriber.
+- The admin dashboard (frontend `/admin`) subscribes via `EventSource` and **upserts** rows,
+  so bookings and their status changes appear in the admin's table instantly — no polling.
 - This streams cleanly through the gateway (`text/event-stream`). Moving to Kafka/WebSockets
   later is additive and does not change the API surface.
 
@@ -62,9 +66,25 @@
   East/Asia long-haul and southern-hemisphere) across 7 days on startup, plus a global
   catalog of ~75 major airports (`AirportCatalog`) exposed at `GET /api/flights/airports`
   to power searchable origin/destination dropdowns.
-- Admins can add flights at runtime via `POST /api/flights`.
+- Admins manage the catalog at runtime: create (`POST`), update (`PUT`), and **soft-delete**
+  (`DELETE` → `active=false`, hidden from search but preserved). `GET /api/flights/admin`
+  provides a backend-paginated, sortable listing with a forgiving search (`FlightQueryService`)
+  that matches every column, resolves **city synonyms** (`CitySynonyms`, e.g. Mumbai ⇄ Bombay)
+  and tolerates typos via Levenshtein distance.
 - The `elasticsearch` profile reserves the configuration surface for moving search to
   Elasticsearch (add the ES starter + an `ElasticsearchFlightRepository`).
+
+## Payments & refunds
+
+- Bookings are created `PENDING_PAYMENT` and confirmed via a simple (mock) payment
+  (`POST /api/bookings/{id}/payment`) that records an `amountPaid` and `paymentReference` and
+  moves the booking to `PAID`. No real card processing happens.
+- Cancellation (`POST /api/bookings/{id}/cancel`) computes a refund with `RefundPolicy`:
+  100% at 7+ days before departure, 50% under 7 days (different day), 30% on the day of travel
+  before departure, 0% at/after departure. `GET /api/bookings/{id}/refund-quote` previews it.
+- Modifications (`PUT /api/bookings/{id}`) allow free typo corrections and passport/email
+  edits but reject ticket transfers (wholesale passenger-name changes or changing the
+  passenger count), enforced by `NameSimilarity` (Levenshtein-based).
 
 ## Eventing (Kafka) — deferred
 
@@ -77,19 +97,22 @@
 ## Roadmap
 
 1. **Phase 1 (done):** gateway + JWT, flight-search, booking, Next.js UI, BOM, H2.
-2. **Admin & realtime (done):** role-based admin login, admin dashboard listing all
-   bookings with a live SSE feed, runtime flight creation, global airport catalog with
-   searchable dropdowns.
-3. **Notification service + Kafka:** booking-service produces `BookingCreated`; a new
+2. **Admin & realtime (done):** role-based admin login landing on a management console,
+   full flight CRUD with soft-delete, backend-paginated fuzzy/synonym search, live SSE
+   booking feed, global airport catalog with searchable dropdowns.
+3. **Multi-user bookings & payments (done):** any username as a distinct traveller,
+   per-user "my bookings", mock payment flow, modify with typo-correction rules, and
+   cancellation with a tiered refund policy.
+4. **Notification service + Kafka:** booking-service produces `BookingCreated`; a new
    service consumes and notifies.
-4. **Real persistence:** switch services to Postgres profiles; add Flyway migrations.
-5. **Search at scale:** index flights into Elasticsearch; richer filters/sorting.
-6. **User/auth service:** real accounts, roles, refresh tokens; gateway validates only.
-7. **Observability:** Micrometer → Prometheus, logs → Loki, traces → Tempo, Grafana
+5. **Real persistence:** switch services to Postgres profiles; add Flyway migrations.
+6. **Search at scale:** index flights into Elasticsearch; richer filters/sorting.
+7. **User/auth service:** real accounts, roles, refresh tokens; gateway validates only.
+8. **Observability:** Micrometer → Prometheus, logs → Loki, traces → Tempo, Grafana
    dashboards (LGTM). Actuator is already enabled on every service.
-8. **Containerise & deploy:** Dockerfiles per service, docker-compose for full local
+9. **Containerise & deploy:** Dockerfiles per service, docker-compose for full local
    stack, then Kubernetes manifests / Helm; move config to ConfigMaps/Secrets.
-9. **Realtime at scale:** the admin feed uses SSE today; move to WebSocket/Kafka-backed
+10. **Realtime at scale:** the admin feed uses SSE today; move to WebSocket/Kafka-backed
    fan-out for multi-instance deployments and live seat availability.
 
 ## Conventions

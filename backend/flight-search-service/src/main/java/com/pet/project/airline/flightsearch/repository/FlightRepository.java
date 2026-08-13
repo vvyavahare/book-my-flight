@@ -16,6 +16,7 @@ public interface FlightRepository extends JpaRepository<Flight, String> {
               and upper(f.destination) = upper(:destination)
               and f.departureTime >= :dayStart
               and f.departureTime < :dayEnd
+              and f.active = true
             order by f.departureTime asc
             """)
     List<Flight> search(@Param("origin") String origin,

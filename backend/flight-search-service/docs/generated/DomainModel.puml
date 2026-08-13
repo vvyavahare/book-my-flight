@@ -18,6 +18,7 @@ class Flight {
   price : BigDecimal
   currency : String
   seatsAvailable : int
+  active : boolean
 }
 
 

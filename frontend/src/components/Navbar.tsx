@@ -27,13 +27,28 @@ export function Navbar() {
           <div className="flex items-center gap-3 text-sm">
             {isAuthenticated ? (
               <>
-                {isAdmin && (
+                {isAdmin ? (
                   <Link
                     href="/admin"
                     className="rounded-lg bg-indigo-50 px-3 py-1.5 font-medium text-indigo-700 transition hover:bg-indigo-100"
                   >
                     Admin
                   </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/"
+                      className="rounded-lg px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-100"
+                    >
+                      Search
+                    </Link>
+                    <Link
+                      href="/bookings"
+                      className="rounded-lg px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-100"
+                    >
+                      My bookings
+                    </Link>
+                  </>
                 )}
                 <span className="hidden text-slate-500 sm:inline">
                   Signed in as{" "}

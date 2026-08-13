@@ -22,6 +22,9 @@ public record BookingDto(
         BigDecimal totalPrice,
         String currency,
         String status,
+        BigDecimal amountPaid,
+        BigDecimal refundAmount,
+        String paymentReference,
         Instant createdAt
 ) {
     public record PassengerDto(String firstName, String lastName, String passportNumber) {

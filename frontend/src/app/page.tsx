@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SearchForm, type SearchValues } from "@/components/SearchForm";
 import { FlightCard } from "@/components/FlightCard";
 import { BookingForm } from "@/components/BookingForm";
 import { api, ApiError } from "@/lib/api";
 import type { Flight } from "@/lib/types";
+import { useAuth } from "@/lib/auth";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export default function HomePage() {
   const { ready, isAuthenticated } = useRequireAuth();
+  const { isAdmin } = useAuth();
+  const router = useRouter();
 
   const [flights, setFlights] = useState<Flight[]>([]);
   const [selected, setSelected] = useState<Flight | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Admins get the management console as their landing page.
+  useEffect(() => {
+    if (ready && isAuthenticated && isAdmin) {
+      router.replace("/admin");
+    }
+  }, [ready, isAuthenticated, isAdmin, router]);
 
   async function handleSearch(values: SearchValues) {
     setLoading(true);

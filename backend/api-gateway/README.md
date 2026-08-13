@@ -17,16 +17,18 @@ authentication and role-based authorization. The frontend talks **only** to this
 
 ## Authentication & authorization
 
-- `POST /api/auth/login` — dev login. Validates the configured demo and admin users and
-  returns a signed **HS256 JWT** with a `roles` claim:
+- `POST /api/auth/login` — dev login. Returns a signed **HS256 JWT** with a `roles` claim:
 
   | Username | Password | Role |
   |----------|----------|------|
-  | `demo` | `demo` | `USER` |
   | `admin` | `admin` | `ADMIN` |
+  | any other username | `demo` | `USER` |
+
+  Any username (except `admin`) with the shared user password signs in as a distinct
+  traveller, so multiple users each keep their own bookings.
 
   ```json
-  { "token": "...", "tokenType": "Bearer", "expiresInMinutes": 60, "username": "admin", "roles": "ADMIN" }
+  { "token": "...", "tokenType": "Bearer", "expiresInMinutes": 60, "username": "alice", "roles": "USER" }
   ```
 
 - `JwtAuthenticationFilter` validates the token on every `/api/**` request **except**
@@ -36,8 +38,9 @@ authentication and role-based authorization. The frontend talks **only** to this
   `X-Auth-User` / `X-Auth-Roles`. On failure it returns a `401` `ApiError`.
 
 - **Admin-only endpoints** additionally require the `ADMIN` role, else a `403` `ApiError`:
-  `POST /api/flights` (create a flight), `GET /api/bookings` (list all bookings) and
-  `GET /api/bookings/stream` (live booking SSE feed).
+  flight `POST` / `PUT` / `DELETE`, `GET /api/flights/admin`, `GET /api/bookings` (list all)
+  and `GET /api/bookings/stream` (live feed). User-scoped booking endpoints (`/mine`, payment,
+  modify, cancel) are open to any authenticated user; `booking-service` enforces ownership.
 
 > This is intentionally minimal — a dedicated user/auth service replaces the inline login in a
 > later phase; downstream services already receive `X-Auth-User` / `X-Auth-Roles`.

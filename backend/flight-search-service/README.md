@@ -10,19 +10,23 @@ a seeded catalog — no external infrastructure required.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/flights?origin={IATA}&destination={IATA}&date={yyyy-MM-dd}` | Search flights by route and (optional) departure date. Defaults to today. |
+| `GET` | `/api/flights?origin={IATA}&destination={IATA}&date={yyyy-MM-dd}` | Search active flights by route and (optional) departure date. Defaults to today. |
 | `GET` | `/api/flights/airports` | Global catalog of ~75 major airports for searchable dropdowns. |
-| `POST` | `/api/flights` | **Admin** — create a flight in the catalog. Returns `201`. |
+| `GET` | `/api/flights/admin?q&page&size&sort&includeInactive` | **Admin** — paginated, fuzzy/synonym search across all columns. |
+| `POST` | `/api/flights` | **Admin** — create a flight. Returns `201`. |
+| `PUT` | `/api/flights/{id}` | **Admin** — update a flight. |
+| `DELETE` | `/api/flights/{id}` | **Admin** — soft-delete a flight (`active=false`). |
 | `GET` | `/api/flights/{id}` | Fetch a single flight by id. |
 | `GET` | `/actuator/health` | Liveness/readiness. |
 
 `FlightDto` fields: `id, flightNumber, airline, origin, destination, departureTime,
-arrivalTime, price, currency, seatsAvailable`. `AirportDto` fields: `code, name, city,
-country`.
+arrivalTime, price, currency, seatsAvailable, active`. `AirportDto` fields: `code, name,
+city, country`. The admin search (`FlightQueryService` + `CitySynonyms`) matches every column,
+resolves city synonyms (Mumbai ⇄ Bombay) and tolerates typos (Levenshtein).
 
 > Reached through the [api-gateway](../api-gateway) in normal use; the endpoints above are the
-> gateway's `/api/flights/**` route target. The gateway enforces the `ADMIN` role on
-> `POST /api/flights`.
+> gateway's `/api/flights/**` route target. The gateway enforces the `ADMIN` role on flight
+> create/update/delete and `GET /api/flights/admin`.
 
 ## Seed data
 

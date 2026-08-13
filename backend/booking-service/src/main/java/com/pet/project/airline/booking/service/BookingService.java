@@ -9,12 +9,15 @@ import com.pet.project.airline.booking.event.BookingEventPublisher;
 import com.pet.project.airline.booking.repository.BookingRepository;
 import com.pet.project.airline.booking.dto.BookingDto;
 import com.pet.project.airline.booking.dto.CreateBookingRequest;
+import com.pet.project.airline.booking.dto.ModifyBookingRequest;
+import com.pet.project.airline.common.web.ForbiddenException;
 import com.pet.project.airline.common.web.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,13 +28,16 @@ public class BookingService {
     private final FlightClient flightClient;
     private final BookingEventPublisher eventPublisher;
     private final BookingStreamBroadcaster broadcaster;
+    private final RefundPolicy refundPolicy;
 
     public BookingService(BookingRepository repository, FlightClient flightClient,
-                          BookingEventPublisher eventPublisher, BookingStreamBroadcaster broadcaster) {
+                          BookingEventPublisher eventPublisher, BookingStreamBroadcaster broadcaster,
+                          RefundPolicy refundPolicy) {
         this.repository = repository;
         this.flightClient = flightClient;
         this.eventPublisher = eventPublisher;
         this.broadcaster = broadcaster;
+        this.refundPolicy = refundPolicy;
     }
 
     @Transactional
@@ -79,9 +85,91 @@ public class BookingService {
         return dto;
     }
 
+    /** Confirm a booking by taking (mock) payment. Owner-only. */
+    @Transactional
+    public BookingDto pay(String id, String user) {
+        Booking booking = requireOwned(id, user);
+        booking.markPaid("PAY-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        BookingDto dto = toDto(repository.save(booking));
+        broadcaster.broadcast(dto);
+        return dto;
+    }
+
+    /**
+     * Modify passenger details / contact email. Enforces the correction rules:
+     * the passenger count is fixed, and each name may only be adjusted as a typo fix —
+     * a wholesale name change (ticket transfer) is rejected. Passport edits are free.
+     */
+    @Transactional
+    public BookingDto modify(String id, String user, ModifyBookingRequest request) {
+        Booking booking = requireOwned(id, user);
+        if (booking.isCancelled()) {
+            throw new IllegalStateException("A cancelled booking cannot be modified");
+        }
+
+        List<Passenger> existing = booking.getPassengers();
+        List<ModifyBookingRequest.PassengerRequest> incoming = request.passengers();
+        if (incoming.size() != existing.size()) {
+            throw new IllegalArgumentException(
+                    "Passengers cannot be added or removed (ticket transfer is not allowed)");
+        }
+
+        List<Passenger> revised = new ArrayList<>();
+        for (int i = 0; i < existing.size(); i++) {
+            Passenger current = existing.get(i);
+            ModifyBookingRequest.PassengerRequest update = incoming.get(i);
+            String oldName = current.getFirstName() + " " + current.getLastName();
+            String newName = update.firstName() + " " + update.lastName();
+            if (!NameSimilarity.isTypoCorrection(oldName, newName)) {
+                throw new IllegalArgumentException(
+                        "Passenger %d: transferring a ticket or changing the passenger name is not allowed. "
+                                .formatted(i + 1)
+                                + "Only minor spelling corrections are permitted.");
+            }
+            revised.add(new Passenger(update.firstName().trim(), update.lastName().trim(),
+                    update.passportNumber()));
+        }
+
+        booking.reviseDetails(revised, request.contactEmail());
+        BookingDto dto = toDto(repository.save(booking));
+        broadcaster.broadcast(dto);
+        return dto;
+    }
+
+    /** Cancel a booking and compute the refund per the policy. Owner-only. */
+    @Transactional
+    public BookingDto cancel(String id, String user) {
+        Booking booking = requireOwned(id, user);
+        if (booking.isCancelled()) {
+            throw new IllegalStateException("Booking is already cancelled");
+        }
+        RefundPolicy.RefundQuote quote = refundPolicy.quote(booking.getAmountPaid(), booking.getDepartureTime());
+        booking.cancel(quote.amount());
+        BookingDto dto = toDto(repository.save(booking));
+        broadcaster.broadcast(dto);
+        return dto;
+    }
+
+    /** A refund preview for a booking without cancelling it. Owner-only. */
+    @Transactional(readOnly = true)
+    public RefundPolicy.RefundQuote refundQuote(String id, String user) {
+        Booking booking = requireOwned(id, user);
+        return refundPolicy.quote(booking.getAmountPaid(), booking.getDepartureTime());
+    }
+
     @Transactional(readOnly = true)
     public List<BookingDto> listAll() {
         return repository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<BookingDto> listMine(String user) {
+        if (user == null || user.isBlank()) {
+            throw new ForbiddenException("Authentication required");
+        }
+        return repository.findByBookedByOrderByCreatedAtDesc(user).stream()
                 .map(this::toDto)
                 .toList();
     }
@@ -91,6 +179,15 @@ public class BookingService {
         Booking booking = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
         return toDto(booking);
+    }
+
+    private Booking requireOwned(String id, String user) {
+        Booking booking = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + id));
+        if (user == null || user.isBlank() || !user.equals(booking.getBookedBy())) {
+            throw new ForbiddenException("You can only manage your own bookings");
+        }
+        return booking;
     }
 
     private String generateReference() {
@@ -115,6 +212,9 @@ public class BookingService {
                 b.getTotalPrice(),
                 b.getCurrency(),
                 b.getStatus().name(),
+                b.getAmountPaid(),
+                b.getRefundAmount(),
+                b.getPaymentReference(),
                 b.getCreatedAt());
     }
 }

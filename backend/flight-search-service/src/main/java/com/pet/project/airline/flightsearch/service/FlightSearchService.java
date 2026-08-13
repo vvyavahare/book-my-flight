@@ -6,12 +6,12 @@ import com.pet.project.airline.flightsearch.repository.FlightRepository;
 import com.pet.project.airline.flightsearch.dto.AirportDto;
 import com.pet.project.airline.flightsearch.dto.CreateFlightRequest;
 import com.pet.project.airline.flightsearch.dto.FlightDto;
+import com.pet.project.airline.flightsearch.dto.UpdateFlightRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -75,6 +75,41 @@ public class FlightSearchService {
         return toDto(repository.save(flight));
     }
 
+    /** Update an existing flight's details (admin action). */
+    @Transactional
+    public FlightDto update(String id, UpdateFlightRequest request) {
+        Flight flight = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Flight not found: " + id));
+        if (!request.arrivalTime().isAfter(request.departureTime())) {
+            throw new IllegalArgumentException("arrivalTime must be after departureTime");
+        }
+        String origin = request.origin().trim().toUpperCase();
+        String destination = request.destination().trim().toUpperCase();
+        if (origin.equals(destination)) {
+            throw new IllegalArgumentException("origin and destination must differ");
+        }
+        flight.update(
+                request.flightNumber().trim().toUpperCase(),
+                request.airline().trim(),
+                origin,
+                destination,
+                request.departureTime(),
+                request.arrivalTime(),
+                request.price(),
+                request.currency().trim().toUpperCase(),
+                request.seatsAvailable());
+        return toDto(repository.save(flight));
+    }
+
+    /** Soft-delete a flight so it no longer appears in search (admin action). */
+    @Transactional
+    public FlightDto softDelete(String id) {
+        Flight flight = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Flight not found: " + id));
+        flight.deactivate();
+        return toDto(repository.save(flight));
+    }
+
     private FlightDto toDto(Flight f) {
         return new FlightDto(
                 f.getId(),
@@ -86,6 +121,7 @@ public class FlightSearchService {
                 f.getArrivalTime(),
                 f.getPrice(),
                 f.getCurrency(),
-                f.getSeatsAvailable());
+                f.getSeatsAvailable(),
+                f.isActive());
     }
 }

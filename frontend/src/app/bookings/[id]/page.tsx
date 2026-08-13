@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import type { Booking } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { PaymentForm } from "@/components/PaymentForm";
+import { BookingDetails } from "@/components/BookingDetails";
 import { BookingStatusBadge } from "@/components/BookingStatusBadge";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
@@ -120,26 +121,7 @@ export default function BookingConfirmationPage({
         </div>
 
         <div className="mt-6">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">
-            Passengers
-          </h2>
-          <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
-            {booking.passengers.map((p, i) => (
-              <li
-                key={i}
-                className="flex items-center justify-between px-4 py-2.5 text-sm"
-              >
-                <span className="text-slate-700">
-                  {p.firstName} {p.lastName}
-                </span>
-                {p.passportNumber && (
-                  <span className="font-mono text-xs text-slate-400">
-                    {p.passportNumber}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <BookingDetails booking={booking} />
         </div>
 
         <div className="mt-8 flex justify-between">

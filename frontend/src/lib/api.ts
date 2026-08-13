@@ -1,14 +1,20 @@
 import type {
   Airport,
+  Amenity,
+  AmenityRequest,
+  AncillaryConfig,
   Booking,
   CreateBookingRequest,
   CreateFlightRequest,
   Flight,
   LoginResponse,
+  MealOption,
+  MealOptionRequest,
   ModifyBookingRequest,
   PageResponse,
   PaymentRequest,
   RefundQuote,
+  SeatMap,
   UpdateFlightRequest,
   ApiErrorBody,
 } from "./types";
@@ -186,6 +192,96 @@ export const api = {
     }
     return request<PageResponse<Flight>>(
       `/api/flights/admin?${search.toString()}`,
+    );
+  },
+
+  // ── Ancillaries: seat map, meals, amenities, fee policy ────────────────────
+
+  async getSeatMap(flightId: string): Promise<SeatMap> {
+    return request<SeatMap>(`/api/seatmaps/${encodeURIComponent(flightId)}`);
+  },
+
+  async getMeals(includeUnavailable = false): Promise<MealOption[]> {
+    const q = includeUnavailable ? "?includeUnavailable=true" : "";
+    return request<MealOption[]>(`/api/catalog/meals${q}`);
+  },
+
+  async getAmenities(includeUnavailable = false): Promise<Amenity[]> {
+    const q = includeUnavailable ? "?includeUnavailable=true" : "";
+    return request<Amenity[]>(`/api/catalog/amenities${q}`);
+  },
+
+  async getAncillaryConfig(): Promise<AncillaryConfig> {
+    return request<AncillaryConfig>("/api/catalog/config");
+  },
+
+  // Admin catalog management
+  async createMeal(payload: MealOptionRequest): Promise<MealOption> {
+    return request<MealOption>("/api/catalog/meals", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateMeal(
+    id: string,
+    payload: MealOptionRequest,
+  ): Promise<MealOption> {
+    return request<MealOption>(`/api/catalog/meals/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteMeal(id: string): Promise<void> {
+    return request<void>(`/api/catalog/meals/${id}`, { method: "DELETE" });
+  },
+
+  async createAmenity(payload: AmenityRequest): Promise<Amenity> {
+    return request<Amenity>("/api/catalog/amenities", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateAmenity(id: string, payload: AmenityRequest): Promise<Amenity> {
+    return request<Amenity>(`/api/catalog/amenities/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteAmenity(id: string): Promise<void> {
+    return request<void>(`/api/catalog/amenities/${id}`, { method: "DELETE" });
+  },
+
+  async updateAncillaryConfig(
+    payload: AncillaryConfig,
+  ): Promise<AncillaryConfig> {
+    return request<AncillaryConfig>("/api/catalog/config", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Admin seat availability management
+  async getBlockedSeats(flightId: string): Promise<string[]> {
+    return request<string[]>(
+      `/api/seatmaps/${encodeURIComponent(flightId)}/blocks`,
+    );
+  },
+
+  async blockSeat(flightId: string, seatNumber: string): Promise<string[]> {
+    return request<string[]>(
+      `/api/seatmaps/${encodeURIComponent(flightId)}/blocks`,
+      { method: "POST", body: JSON.stringify({ seatNumber }) },
+    );
+  },
+
+  async unblockSeat(flightId: string, seatNumber: string): Promise<string[]> {
+    return request<string[]>(
+      `/api/seatmaps/${encodeURIComponent(flightId)}/blocks/${encodeURIComponent(seatNumber)}`,
+      { method: "DELETE" },
     );
   },
 };

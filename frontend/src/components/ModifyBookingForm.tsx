@@ -20,7 +20,11 @@ export function ModifyBookingForm({
 }) {
   const [contactEmail, setContactEmail] = useState(booking.contactEmail);
   const [passengers, setPassengers] = useState<PassengerInput[]>(
-    booking.passengers.map((p) => ({ ...p })),
+    booking.passengers.map((p) => ({
+      firstName: p.firstName,
+      lastName: p.lastName,
+      passportNumber: p.passportNumber ?? undefined,
+    })),
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

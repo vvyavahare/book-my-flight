@@ -99,7 +99,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("GET".equals(method) && "/api/bookings".equals(path)) {
             return true;
         }
-        return "GET".equals(method) && "/api/bookings/stream".equals(path);
+        if ("GET".equals(method) && "/api/bookings/stream".equals(path)) {
+            return true;
+        }
+
+        // Ancillary catalog management (meals, amenities, fee policy). Reads stay open so
+        // travellers can browse and price selections; writes are admin-only.
+        if (path.startsWith("/api/catalog/") && !"GET".equals(method)) {
+            return true;
+        }
+
+        // Seat availability management (block / unblock). Reading the seat map stays open;
+        // listing or changing blocked seats is admin-only.
+        if (path.startsWith("/api/seatmaps/") && path.contains("/blocks")) {
+            return true;
+        }
+        return false;
     }
 
     private boolean hasAdminRole(String roles) {

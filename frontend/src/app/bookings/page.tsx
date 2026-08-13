@@ -8,6 +8,7 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 import { BookingStatusBadge } from "@/components/BookingStatusBadge";
 import { ModifyBookingForm } from "@/components/ModifyBookingForm";
 import { PaymentForm } from "@/components/PaymentForm";
+import { BookingDetails } from "@/components/BookingDetails";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export default function MyBookingsPage() {
@@ -89,7 +90,9 @@ function BookingRow({
   booking: Booking;
   onChange: (b: Booking) => void;
 }) {
-  const [mode, setMode] = useState<"none" | "pay" | "modify">("none");
+  const [mode, setMode] = useState<"none" | "pay" | "modify" | "details">(
+    "none",
+  );
   const [quote, setQuote] = useState<RefundQuote | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +170,12 @@ function BookingRow({
 
       {!cancelled && (
         <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+          <button
+            onClick={() => setMode(mode === "details" ? "none" : "details")}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            {mode === "details" ? "Hide details" : "View details"}
+          </button>
           {pending && (
             <button
               onClick={() => setMode(mode === "pay" ? "none" : "pay")}
@@ -202,6 +211,17 @@ function BookingRow({
         </div>
       )}
 
+      {cancelled && (
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <button
+            onClick={() => setMode(mode === "details" ? "none" : "details")}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            {mode === "details" ? "Hide details" : "View details"}
+          </button>
+        </div>
+      )}
+
       {quote && !cancelled && (
         <p className="mt-2 text-xs text-slate-500">{quote.reason}</p>
       )}
@@ -221,6 +241,12 @@ function BookingRow({
               setMode("none");
             }}
           />
+        </div>
+      )}
+
+      {mode === "details" && (
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <BookingDetails booking={booking} />
         </div>
       )}
 

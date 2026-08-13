@@ -1,15 +1,53 @@
 // Shared API types mirroring the backend DTOs exposed through the gateway.
 
+export type SeatClass = "ECONOMY" | "BUSINESS" | "FIRST";
+
+export type DietaryPreference =
+  | "VEGETARIAN"
+  | "VEGAN"
+  | "NON_VEGETARIAN"
+  | "GLUTEN_FREE";
+
 export interface PassengerInput {
   firstName: string;
   lastName: string;
   passportNumber?: string;
+  needsAccessibility?: boolean;
+  seatNumber?: string | null;
+  seatClass?: SeatClass | null;
+  mealId?: string | null;
+  checkedBags?: number;
+  baggageWeightKg?: number;
 }
 
 export interface CreateBookingRequest {
   flightId: string;
   contactEmail: string;
   passengers: PassengerInput[];
+  amenityIds?: string[];
+}
+
+/** A passenger as returned on a booking, including their resolved ancillary fees. */
+export interface BookingPassenger {
+  firstName: string;
+  lastName: string;
+  passportNumber?: string | null;
+  needsAccessibility: boolean;
+  seatNumber?: string | null;
+  seatClass?: SeatClass | null;
+  seatFee: number;
+  mealId?: string | null;
+  mealName?: string | null;
+  mealPrice: number;
+  checkedBags: number;
+  baggageWeightKg: number;
+  baggageFee: number;
+}
+
+export interface AmenitySelection {
+  amenityId: string;
+  name: string;
+  price: number;
 }
 
 export interface Booking {
@@ -22,7 +60,13 @@ export interface Booking {
   departureTime: string;
   contactEmail: string;
   bookedBy: string;
-  passengers: PassengerInput[];
+  passengers: BookingPassenger[];
+  amenities: AmenitySelection[];
+  baseFare: number;
+  seatFeesTotal: number;
+  baggageFeesTotal: number;
+  mealFeesTotal: number;
+  amenityFeesTotal: number;
   totalPrice: number;
   currency: string;
   status: string;
@@ -74,6 +118,73 @@ export interface RefundQuote {
   amount: number;
   percent: number;
   reason: string;
+}
+
+// ── Ancillaries ─────────────────────────────────────────────────────────────
+
+export interface Seat {
+  seatNumber: string;
+  row: number;
+  column: string;
+  seatClass: SeatClass;
+  fee: number;
+  accessible: boolean;
+  available: boolean;
+}
+
+export interface SeatMap {
+  flightId: string;
+  currency: string;
+  columns: string[];
+  seats: Seat[];
+}
+
+export interface MealOption {
+  id: string;
+  name: string;
+  description: string;
+  dietary: DietaryPreference;
+  price: number;
+  imageUrl: string;
+  available: boolean;
+}
+
+export interface Amenity {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  available: boolean;
+}
+
+export interface AncillaryConfig {
+  economySeatFee: number;
+  businessSeatFee: number;
+  firstSeatFee: number;
+  economyBag1Fee: number;
+  economyBag2Fee: number;
+  economyBag3Fee: number;
+  businessBag2Fee: number;
+  businessBag3Fee: number;
+  maxCheckedBags: number;
+  maxCheckedWeightKg: number;
+  currency: string;
+}
+
+export interface MealOptionRequest {
+  name: string;
+  description: string;
+  dietary: DietaryPreference;
+  price: number;
+  imageUrl: string;
+  available: boolean;
+}
+
+export interface AmenityRequest {
+  name: string;
+  description: string;
+  price: number;
+  available: boolean;
 }
 
 export interface PageResponse<T> {

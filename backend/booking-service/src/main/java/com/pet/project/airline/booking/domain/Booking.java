@@ -14,10 +14,13 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A confirmed flight booking (aggregate root) with its passengers.
+ * A confirmed flight booking (aggregate root) with its passengers, their per-passenger
+ * ancillaries (seat, meal, baggage) and booking-level amenities. The total price is the
+ * base fare plus the itemised ancillary fees.
  */
 @Entity
 @Table(name = "bookings")
@@ -55,6 +58,26 @@ public class Booking {
     @CollectionTable(name = "booking_passengers", joinColumns = @JoinColumn(name = "booking_id"))
     private List<Passenger> passengers;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "booking_amenities", joinColumns = @JoinColumn(name = "booking_id"))
+    private List<BookingAmenity> amenities;
+
+    // -- Price breakdown -------------------------------------------------------
+    @Column(nullable = false)
+    private BigDecimal baseFare;
+
+    @Column(nullable = false)
+    private BigDecimal seatFeesTotal;
+
+    @Column(nullable = false)
+    private BigDecimal baggageFeesTotal;
+
+    @Column(nullable = false)
+    private BigDecimal mealFeesTotal;
+
+    @Column(nullable = false)
+    private BigDecimal amenityFeesTotal;
+
     @Column(nullable = false)
     private BigDecimal totalPrice;
 
@@ -83,7 +106,10 @@ public class Booking {
 
     public Booking(String id, String reference, String flightId, String flightNumber, String origin,
                    String destination, LocalDateTime departureTime, String contactEmail,
-                   String bookedBy, List<Passenger> passengers, BigDecimal totalPrice, String currency) {
+                   String bookedBy, List<Passenger> passengers, List<BookingAmenity> amenities,
+                   BigDecimal baseFare, BigDecimal seatFeesTotal, BigDecimal baggageFeesTotal,
+                   BigDecimal mealFeesTotal, BigDecimal amenityFeesTotal, BigDecimal totalPrice,
+                   String currency) {
         this.id = id;
         this.reference = reference;
         this.flightId = flightId;
@@ -94,6 +120,12 @@ public class Booking {
         this.contactEmail = contactEmail;
         this.bookedBy = bookedBy;
         this.passengers = passengers;
+        this.amenities = amenities == null ? new ArrayList<>() : amenities;
+        this.baseFare = baseFare;
+        this.seatFeesTotal = seatFeesTotal;
+        this.baggageFeesTotal = baggageFeesTotal;
+        this.mealFeesTotal = mealFeesTotal;
+        this.amenityFeesTotal = amenityFeesTotal;
         this.totalPrice = totalPrice;
         this.currency = currency;
         this.status = BookingStatus.PENDING_PAYMENT;
@@ -142,6 +174,30 @@ public class Booking {
         return passengers;
     }
 
+    public List<BookingAmenity> getAmenities() {
+        return amenities;
+    }
+
+    public BigDecimal getBaseFare() {
+        return baseFare;
+    }
+
+    public BigDecimal getSeatFeesTotal() {
+        return seatFeesTotal;
+    }
+
+    public BigDecimal getBaggageFeesTotal() {
+        return baggageFeesTotal;
+    }
+
+    public BigDecimal getMealFeesTotal() {
+        return mealFeesTotal;
+    }
+
+    public BigDecimal getAmenityFeesTotal() {
+        return amenityFeesTotal;
+    }
+
     public BigDecimal getTotalPrice() {
         return totalPrice;
     }
@@ -170,7 +226,7 @@ public class Booking {
         return createdAt;
     }
 
-    // ── Behaviour ────────────────────────────────────────────────────────────────
+    // -- Behaviour -------------------------------------------------------------
 
     /** Record a successful payment and confirm the booking. */
     public void markPaid(String paymentReference) {

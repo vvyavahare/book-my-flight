@@ -1,0 +1,7 @@
+/Users/vishalvyavahare/git/airline.worktrees/enhanced-booking-functionality/backend/api-gateway/src/main/java/com/pet/project/airline/gateway/ApiGatewayApplication.java
+/Users/vishalvyavahare/git/airline.worktrees/enhanced-booking-functionality/backend/api-gateway/src/main/java/com/pet/project/airline/gateway/auth/AuthController.java
+/Users/vishalvyavahare/git/airline.worktrees/enhanced-booking-functionality/backend/api-gateway/src/main/java/com/pet/project/airline/gateway/auth/LoginRequest.java
+/Users/vishalvyavahare/git/airline.worktrees/enhanced-booking-functionality/backend/api-gateway/src/main/java/com/pet/project/airline/gateway/auth/LoginResponse.java
+/Users/vishalvyavahare/git/airline.worktrees/enhanced-booking-functionality/backend/api-gateway/src/main/java/com/pet/project/airline/gateway/config/GatewaySecurityConfig.java
+/Users/vishalvyavahare/git/airline.worktrees/enhanced-booking-functionality/backend/api-gateway/src/main/java/com/pet/project/airline/gateway/security/HeaderAddingRequestWrapper.java
+/Users/vishalvyavahare/git/airline.worktrees/enhanced-booking-functionality/backend/api-gateway/src/main/java/com/pet/project/airline/gateway/security/JwtAuthenticationFilter.java

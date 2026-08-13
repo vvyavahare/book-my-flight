@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { FlightsAdmin } from "@/components/FlightsAdmin";
+import { MealsAdmin } from "@/components/MealsAdmin";
+import { AmenitiesAdmin } from "@/components/AmenitiesAdmin";
+import { FeesAdmin } from "@/components/FeesAdmin";
+import { BookingDetails } from "@/components/BookingDetails";
 import { api, ApiError, bookingStreamUrl } from "@/lib/api";
 import type { Booking } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { BookingStatusBadge } from "@/components/BookingStatusBadge";
 import { useRequireAdmin } from "@/lib/useRequireAdmin";
 
-type Tab = "flights" | "bookings";
+type Tab = "flights" | "bookings" | "meals" | "amenities" | "fees";
 
 export default function AdminPage() {
   const { ready, isAuthenticated, isAdmin } = useRequireAdmin();
@@ -29,16 +33,32 @@ export default function AdminPage() {
         </p>
       </section>
 
-      <div className="flex gap-1 rounded-xl border border-white/60 bg-white/70 p-1 backdrop-blur sm:w-fit">
+      <div className="flex flex-wrap gap-1 rounded-xl border border-white/60 bg-white/70 p-1 backdrop-blur sm:w-fit">
         <TabButton active={tab === "flights"} onClick={() => setTab("flights")}>
           ✈ Flights
         </TabButton>
         <TabButton active={tab === "bookings"} onClick={() => setTab("bookings")}>
           ● Bookings (live)
         </TabButton>
+        <TabButton active={tab === "meals"} onClick={() => setTab("meals")}>
+          🍽 Meals
+        </TabButton>
+        <TabButton
+          active={tab === "amenities"}
+          onClick={() => setTab("amenities")}
+        >
+          ✨ Amenities
+        </TabButton>
+        <TabButton active={tab === "fees"} onClick={() => setTab("fees")}>
+          € Fees &amp; Seats
+        </TabButton>
       </div>
 
-      {tab === "flights" ? <FlightsAdmin /> : <BookingsLive />}
+      {tab === "flights" && <FlightsAdmin />}
+      {tab === "bookings" && <BookingsLive />}
+      {tab === "meals" && <MealsAdmin />}
+      {tab === "amenities" && <AmenitiesAdmin />}
+      {tab === "fees" && <FeesAdmin />}
     </div>
   );
 }
@@ -71,6 +91,7 @@ function BookingsLive() {
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -161,46 +182,65 @@ function BookingsLive() {
                 <th className="px-4 py-3">Passengers</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {bookings.map((b) => (
-                <tr
-                  key={b.id}
-                  className={
-                    flashId === b.id
-                      ? "bg-emerald-50 transition-colors"
-                      : "transition-colors"
-                  }
-                >
-                  <td className="px-4 py-3 font-mono font-semibold text-slate-700">
-                    {b.reference}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{b.bookedBy}</td>
-                  <td className="px-4 py-3 text-slate-600">{b.flightNumber}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {b.origin} → {b.destination}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {formatDateTime(b.departureTime)}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {b.passengers
-                      .map((p) => `${p.firstName} ${p.lastName}`)
-                      .join(", ")}
-                  </td>
-                  <td className="px-4 py-3">
-                    <BookingStatusBadge status={b.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                    {formatMoney(b.totalPrice, b.currency)}
-                    {b.refundAmount > 0 && (
-                      <div className="text-xs font-normal text-emerald-600">
-                        refunded {formatMoney(b.refundAmount, b.currency)}
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                <Fragment key={b.id}>
+                  <tr
+                    className={
+                      flashId === b.id
+                        ? "bg-emerald-50 transition-colors"
+                        : "transition-colors"
+                    }
+                  >
+                    <td className="px-4 py-3 font-mono font-semibold text-slate-700">
+                      {b.reference}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{b.bookedBy}</td>
+                    <td className="px-4 py-3 text-slate-600">{b.flightNumber}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {b.origin} → {b.destination}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {formatDateTime(b.departureTime)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {b.passengers
+                        .map((p) => `${p.firstName} ${p.lastName}`)
+                        .join(", ")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <BookingStatusBadge status={b.status} />
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                      {formatMoney(b.totalPrice, b.currency)}
+                      {b.refundAmount > 0 && (
+                        <div className="text-xs font-normal text-emerald-600">
+                          refunded {formatMoney(b.refundAmount, b.currency)}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() =>
+                          setExpandedId(expandedId === b.id ? null : b.id)
+                        }
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
+                      >
+                        {expandedId === b.id ? "Hide" : "Details"}
+                      </button>
+                    </td>
+                  </tr>
+                  {expandedId === b.id && (
+                    <tr className="bg-slate-50/60">
+                      <td colSpan={9} className="px-4 py-4">
+                        <BookingDetails booking={b} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

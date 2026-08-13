@@ -3,6 +3,7 @@ package com.pet.project.airline.booking.service;
 import com.pet.project.airline.booking.client.FlightClient;
 import com.pet.project.airline.booking.client.FlightSummary;
 import com.pet.project.airline.booking.domain.Booking;
+import com.pet.project.airline.booking.domain.BookingAmenity;
 import com.pet.project.airline.booking.domain.Passenger;
 import com.pet.project.airline.booking.event.BookingCreatedEvent;
 import com.pet.project.airline.booking.event.BookingEventPublisher;
@@ -29,15 +30,17 @@ public class BookingService {
     private final BookingEventPublisher eventPublisher;
     private final BookingStreamBroadcaster broadcaster;
     private final RefundPolicy refundPolicy;
+    private final AncillaryPricingService pricingService;
 
     public BookingService(BookingRepository repository, FlightClient flightClient,
                           BookingEventPublisher eventPublisher, BookingStreamBroadcaster broadcaster,
-                          RefundPolicy refundPolicy) {
+                          RefundPolicy refundPolicy, AncillaryPricingService pricingService) {
         this.repository = repository;
         this.flightClient = flightClient;
         this.eventPublisher = eventPublisher;
         this.broadcaster = broadcaster;
         this.refundPolicy = refundPolicy;
+        this.pricingService = pricingService;
     }
 
     @Transactional
@@ -45,15 +48,11 @@ public class BookingService {
         FlightSummary flight = flightClient.findFlight(request.flightId())
                 .orElseThrow(() -> new ResourceNotFoundException("Flight not found: " + request.flightId()));
 
-        List<Passenger> passengers = request.passengers().stream()
-                .map(p -> new Passenger(p.firstName(), p.lastName(), p.passportNumber()))
-                .toList();
-
-        if (flight.seatsAvailable() < passengers.size()) {
+        if (flight.seatsAvailable() < request.passengers().size()) {
             throw new IllegalArgumentException("Not enough seats available on flight " + flight.flightNumber());
         }
 
-        BigDecimal totalPrice = flight.price().multiply(BigDecimal.valueOf(passengers.size()));
+        AncillaryPricingService.PricedBooking priced = pricingService.price(request, flight);
 
         Booking booking = new Booking(
                 UUID.randomUUID().toString(),
@@ -65,8 +64,14 @@ public class BookingService {
                 flight.departureTime(),
                 request.contactEmail(),
                 bookedBy != null && !bookedBy.isBlank() ? bookedBy : "unknown",
-                passengers,
-                totalPrice,
+                priced.passengers(),
+                priced.amenities(),
+                priced.baseFare(),
+                priced.seatFeesTotal(),
+                priced.baggageFeesTotal(),
+                priced.mealFeesTotal(),
+                priced.amenityFeesTotal(),
+                priced.totalPrice(),
                 flight.currency());
 
         Booking saved = repository.save(booking);
@@ -127,7 +132,10 @@ public class BookingService {
                                 + "Only minor spelling corrections are permitted.");
             }
             revised.add(new Passenger(update.firstName().trim(), update.lastName().trim(),
-                    update.passportNumber()));
+                    update.passportNumber(), current.isNeedsAccessibility(),
+                    current.getSeatNumber(), current.getSeatClass(), current.getSeatFee(),
+                    current.getMealId(), current.getMealName(), current.getMealPrice(),
+                    current.getCheckedBags(), current.getBaggageWeightKg(), current.getBaggageFee()));
         }
 
         booking.reviseDetails(revised, request.contactEmail());
@@ -196,7 +204,14 @@ public class BookingService {
 
     private BookingDto toDto(Booking b) {
         List<BookingDto.PassengerDto> passengers = b.getPassengers().stream()
-                .map(p -> new BookingDto.PassengerDto(p.getFirstName(), p.getLastName(), p.getPassportNumber()))
+                .map(p -> new BookingDto.PassengerDto(
+                        p.getFirstName(), p.getLastName(), p.getPassportNumber(),
+                        p.isNeedsAccessibility(), p.getSeatNumber(), p.getSeatClass(), p.getSeatFee(),
+                        p.getMealId(), p.getMealName(), p.getMealPrice(),
+                        p.getCheckedBags(), p.getBaggageWeightKg(), p.getBaggageFee()))
+                .toList();
+        List<BookingDto.AmenitySelectionDto> amenities = b.getAmenities().stream()
+                .map(a -> new BookingDto.AmenitySelectionDto(a.getAmenityId(), a.getName(), a.getPrice()))
                 .toList();
         return new BookingDto(
                 b.getId(),
@@ -209,6 +224,12 @@ public class BookingService {
                 b.getContactEmail(),
                 b.getBookedBy(),
                 passengers,
+                amenities,
+                b.getBaseFare(),
+                b.getSeatFeesTotal(),
+                b.getBaggageFeesTotal(),
+                b.getMealFeesTotal(),
+                b.getAmenityFeesTotal(),
                 b.getTotalPrice(),
                 b.getCurrency(),
                 b.getStatus().name(),

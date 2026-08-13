@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: booking-service
+
+  # --- Default profile: H2 in-memory DB so the service runs with zero external infra ---
+  datasource:
+    url: jdbc:h2:mem:bookings;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+server:
+  port: 8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+# Application-specific configuration
+airline:
+  clients:
+    flight-search:
+      # Direct service URL by default; override to route via the gateway or k8s service name.
+      base-url: http://localhost:8081
+
+---
+# ============================================================================
+# PLACEHOLDER PROFILE: postgres
+# Activate with: --spring.profiles.active=postgres  (requires a running Postgres)
+# Also uncomment the postgresql dependency in pom.xml.
+# ============================================================================
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bookings
+    driver-class-name: org.postgresql.Driver
+    username: airline
+    password: airline
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+---
+# ============================================================================
+# PLACEHOLDER PROFILE: kafka
+# Activate with: --spring.profiles.active=kafka  (requires a running Kafka broker)
+# Also uncomment the spring-kafka dependency in pom.xml and the
+# KafkaBookingEventPublisher class. This block only reserves the config surface.
+# ============================================================================
+spring:
+  config:
+    activate:
+      on-profile: kafka
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+airline:
+  events:
+    topic: booking-events

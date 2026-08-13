@@ -7,6 +7,32 @@ footer Generated via reflection from domain/*.java by DomainModelExtractorTest
 hide empty members
 skinparam classAttributeIconSize 0
 
+class Amenity {
+  id : String
+  name : String
+  description : String
+  price : BigDecimal
+  available : boolean
+}
+class AncillaryConfig {
+  id : String
+  economySeatFee : BigDecimal
+  businessSeatFee : BigDecimal
+  firstSeatFee : BigDecimal
+  economyBag1Fee : BigDecimal
+  economyBag2Fee : BigDecimal
+  economyBag3Fee : BigDecimal
+  businessBag2Fee : BigDecimal
+  businessBag3Fee : BigDecimal
+  maxCheckedBags : int
+  maxCheckedWeightKg : int
+  currency : String
+}
+class BlockedSeat {
+  id : String
+  flightId : String
+  seatNumber : String
+}
 class Booking {
   id : String
   reference : String
@@ -17,12 +43,22 @@ class Booking {
   departureTime : LocalDateTime
   contactEmail : String
   bookedBy : String
+  baseFare : BigDecimal
+  seatFeesTotal : BigDecimal
+  baggageFeesTotal : BigDecimal
+  mealFeesTotal : BigDecimal
+  amenityFeesTotal : BigDecimal
   totalPrice : BigDecimal
   currency : String
   amountPaid : BigDecimal
   refundAmount : BigDecimal
   paymentReference : String
   createdAt : Instant
+}
+class BookingAmenity {
+  amenityId : String
+  name : String
+  price : BigDecimal
 }
 enum BookingStatus {
   PENDING_PAYMENT
@@ -31,13 +67,44 @@ enum BookingStatus {
   CANCELLED
   REFUNDED
 }
+enum DietaryPreference {
+  VEGETARIAN
+  VEGAN
+  NON_VEGETARIAN
+  GLUTEN_FREE
+}
+class MealOption {
+  id : String
+  name : String
+  description : String
+  price : BigDecimal
+  imageUrl : String
+  available : boolean
+}
 class Passenger {
   firstName : String
   lastName : String
   passportNumber : String
+  needsAccessibility : boolean
+  seatNumber : String
+  seatFee : BigDecimal
+  mealId : String
+  mealName : String
+  mealPrice : BigDecimal
+  checkedBags : int
+  baggageWeightKg : int
+  baggageFee : BigDecimal
+}
+enum SeatClass {
+  ECONOMY
+  BUSINESS
+  FIRST
 }
 
+Booking "1" -- "0..*" BookingAmenity : amenities
 Booking "1" -- "0..*" Passenger : passengers
 BookingStatus "1" -- "0..*" Booking : status
+DietaryPreference "1" -- "0..*" MealOption : dietary
+SeatClass "1" -- "0..*" Passenger : seatClass
 
 @enduml

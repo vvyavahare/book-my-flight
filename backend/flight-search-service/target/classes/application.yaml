@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: flight-search-service
+
+  # --- Default profile: H2 in-memory DB so the service runs with zero external infra ---
+  datasource:
+    url: jdbc:h2:mem:flights;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+# Application-specific configuration (Elasticsearch placeholder — inactive by default)
+airline:
+  search:
+    # When true (and the 'elasticsearch' profile is active), search would be served from
+    # Elasticsearch instead of the relational DB. Wiring is a placeholder for a later phase.
+    elasticsearch-enabled: false
+
+---
+# ============================================================================
+# PLACEHOLDER PROFILE: postgres
+# Activate with: --spring.profiles.active=postgres  (requires a running Postgres)
+# Also uncomment the postgresql dependency in pom.xml.
+# ============================================================================
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flights
+    driver-class-name: org.postgresql.Driver
+    username: airline
+    password: airline
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+---
+# ============================================================================
+# PLACEHOLDER PROFILE: elasticsearch
+# Activate with: --spring.profiles.active=elasticsearch  (requires a running Elasticsearch)
+# Also uncomment the spring-boot-starter-data-elasticsearch dependency in pom.xml and add
+# an ElasticsearchFlightRepository. This block only reserves the configuration surface.
+# ============================================================================
+spring:
+  config:
+    activate:
+      on-profile: elasticsearch
+  elasticsearch:
+    uris: http://localhost:9200
+    connection-timeout: 3s
+    socket-timeout: 5s
+airline:
+  search:
+    elasticsearch-enabled: true

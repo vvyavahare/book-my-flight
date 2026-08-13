@@ -1,0 +1,15 @@
+com/pet/project/airline/flightsearch/service/CitySynonyms.class
+com/pet/project/airline/flightsearch/dto/AirportDto.class
+com/pet/project/airline/flightsearch/FlightSearchApplication.class
+com/pet/project/airline/flightsearch/service/FlightSearchService.class
+com/pet/project/airline/flightsearch/dto/CreateFlightRequest.class
+com/pet/project/airline/flightsearch/service/AirportCatalog.class
+com/pet/project/airline/flightsearch/web/FlightController.class
+com/pet/project/airline/flightsearch/dto/UpdateFlightRequest.class
+com/pet/project/airline/flightsearch/config/FlightDataSeeder.class
+com/pet/project/airline/flightsearch/config/FlightDataSeeder$Route.class
+com/pet/project/airline/flightsearch/service/FlightQueryService$FuzzyText.class
+com/pet/project/airline/flightsearch/dto/FlightDto.class
+com/pet/project/airline/flightsearch/repository/FlightRepository.class
+com/pet/project/airline/flightsearch/service/FlightQueryService.class
+com/pet/project/airline/flightsearch/domain/Flight.class
